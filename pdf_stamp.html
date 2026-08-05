@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>研發專用 PDF 文件處理與電子蓋章工具</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    :root {
+      --bg: #1e1e2e;
+      --panel: #2a2a3c;
+      --accent: #7209b7;
+      --text: #e2e8f0;
+      --border: #444466;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 340px;
+      background: var(--panel);
+      padding: 20px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+    h2 { font-size: 1.2rem; color: #f72585; margin-bottom: 4px; }
+    .section {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .section-title { font-weight: bold; font-size: 0.9rem; margin-bottom: 8px; color: #4cc9f0; }
+    label { font-size: 0.85rem; display: block; margin-top: 6px; }
+    input, select, button {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: #120e16;
+      color: #fff;
+      font-size: 0.9rem;
+    }
+    /* 拖曳上傳專屬區域 */
+    .drop-zone {
+      border: 2px dashed #7209b7;
+      padding: 15px;
+      text-align: center;
+      border-radius: 6px;
+      background: rgba(114, 9, 183, 0.1);
+      cursor: pointer;
+      margin-top: 6px;
+      transition: background 0.2s;
+    }
+    .drop-zone.dragover {
+      background: rgba(114, 9, 183, 0.3);
+      border-color: #f72585;
+    }
+    button {
+      background: linear-gradient(135deg, #7209b7, #b5179e);
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+      border: none;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.9; }
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      overflow-y: auto;
+      position: relative;
+    }
+    .page-container {
+      position: relative;
+      border: 2px dashed var(--border);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      margin-top: 10px;
+      background: #fff;
+    }
+    canvas { display: block; }
+    #stampOverlay {
+      position: absolute;
+      cursor: move;
+      user-select: none;
+      border: 1px dashed rgba(0, 0, 255, 0.5);
+      display: none;
+    }
+    .nav-tools {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .nav-tools span { font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+
+  <div class="sidebar">
+    <h2>研發 PDF & 電子章工具</h2>
+    
+    <div class="section">
+      <div class="section-title">1. 選擇或拖曳 PDF 檔案</div>
+      <div class="drop-zone" id="dropZone">
+        📂 點擊選擇檔案，或把 PDF 拖到這裡
+        <input type="file" id="pdfInput" accept="application/pdf" style="display: none;">
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">2. 動態印章設定</div>
+      <label>頂層單位：</label>
+      <input type="text" id="stampDept" value="研發單位" oninput="updateStampPreview()">
+      
+      <label>中層日期：</label>
+      <input type="text" id="stampDate" value="" oninput="updateStampPreview()">
+      
+      <label>底層姓名：</label>
+      <input type="text" id="stampName" value="沈敏惠" oninput="updateStampPreview()">
+      
+      <label>印章尺寸 (直徑 px)：</label>
+      <input type="range" id="stampSize" min="60" max="180" value="100" oninput="updateStampPreview()">
+      
+      <label>印章顏色：</label>
+      <select id="stampColor" onchange="updateStampPreview()">
+        <option value="#00008b">藍色 (深藍)</option>
+        <option value="#cc0000">紅色</option>
+        <option value="#000000">黑色</option>
+      </select>
+
+      <button onclick="enableStampMode()">📍 開啟/重置拖曳蓋章模式</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">3. 執行與匯出</div>
+      <button onclick="applyStampAndDownload()" style="background: linear-gradient(135deg, #2a9d8f, #e76f51);">💾 蓋章並下載 PDF</button>
+      <button onclick="extractCurrentPage()" style="background: #3a0ca3;">✂️ 提取當前頁面另存檔</button>
+      <button onclick="deleteCurrentPage()" style="background: #d62828;">🗑️ 刪除當前頁面並下載</button>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="nav-tools">
+      <button onclick="changePage(-1)" style="width: auto; padding: 6px 16px;">◀ 上一頁</button>
+      <span id="pageNumDisplay">頁數：0 / 0</span>
+      <button onclick="changePage(1)" style="width: auto; padding: 6px 16px;">下一頁 ▶</button>
+    </div>
+
+    <div class="page-container" id="pageContainer">
+      <canvas id="pdfCanvas"></canvas>
+      <canvas id="stampOverlay"></canvas>
+    </div>
+  </div>
+
+<script>
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  let currentPdfBytes = null;
+  let pdfDoc = null;
+  let currentPageNum = 1;
+  let totalPages = 0;
+  let scale = 1.2;
+
+  let stampX = 50;
+  let stampY = 50;
+  let isDragging = false;
+  let dragStartX, dragStartY;
+
+  window.onload = function() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    document.getElementById('stampDate').value = `${yyyy}.${mm}.${dd}`;
+  };
+
+  // 處理檔案載入邏輯
+  async function loadPdfFile(file) {
+    if (!file || file.type !== 'application/pdf') return alert('請選擇有效的 PDF 檔案！');
+    try {
+      currentPdfBytes = await file.arrayBuffer();
+      pdfDoc = await pdfjsLib.getDocument({ data: currentPdfBytes.slice(0) }).promise;
+      totalPages = pdfDoc.numPages;
+      currentPageNum = 1;
+      renderPage(currentPageNum);
+    } catch (err) {
+      alert('讀取 PDF 失敗：' + err.message);
+    }
+  }
+
+  // 傳統選擇檔案事件
+  const pdfInput = document.getElementById('pdfInput');
+  const dropZone = document.getElementById('dropZone');
+
+  dropZone.addEventListener('click', () => pdfInput.click());
+  pdfInput.addEventListener('change', (e) => loadPdfFile(e.target.files[0]));
+
+  // 拖曳放檔 (Drag & Drop) 事件
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    document.body.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
+  });
+
+  document.body.addEventListener('dragover', () => dropZone.classList.add('dragover'), false);
+  document.body.addEventListener('dragleave', () => dropZone.classList.remove('dragover'), false);
+  document.body.addEventListener('drop', (e) => {
+    dropZone.classList.remove('dragover');
+    const files = e.dataTransfer.files;
+    if (files.length > 0) loadPdfFile(files[0]);
+  }, false);
+
+  async function renderPage(num) {
+    if (!pdfDoc) return;
+    try {
+      const page = await pdfDoc.getPage(num);
+      const viewport = page.getViewport({ scale: scale });
+
+      const canvas = document.getElementById('pdfCanvas');
+      const ctx = canvas.getContext('2d');
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      const container = document.getElementById('pageContainer');
+      container.style.width = viewport.width + 'px';
+      container.style.height = viewport.height + 'px';
+
+      await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+      document.getElementById('pageNumDisplay').innerText = `頁數：${num} / ${totalPages}`;
+
+      updateStampPreview();
+    } catch (err) {
+      alert('渲染頁面失敗：' + err.message);
+    }
+  }
+
+  // 精密計算與繪製圓形三層印章 (修正文字與數字置中)
+  function drawStampCanvas(size, dept, date, name, color) {
+    const stampCanvas = document.createElement('canvas');
+    stampCanvas.width = size;
+    stampCanvas.height = size;
+    const ctx = stampCanvas.getContext('2d');
+
+    const radius = size / 2 - 4;
+    const cx = size / 2;
+    const cy = size / 2;
+
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = Math.max(2, size / 35);
+
+    // 外圓
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 兩條橫線 (精確三等分)
+    const lineY1 = cy - radius * 0.33;
+    const lineY2 = cy + radius * 0.33;
+
+    const dx1 = Math.sqrt(radius * radius - (lineY1 - cy) * (lineY1 - cy));
+    ctx.beginPath();
+    ctx.moveTo(cx - dx1, lineY1);
+    ctx.lineTo(cx + dx1, lineY1);
+    ctx.stroke();
+
+    const dx2 = Math.sqrt(radius * radius - (lineY2 - cy) * (lineY2 - cy));
+    ctx.beginPath();
+    ctx.moveTo(cx - dx2, lineY2);
+    ctx.lineTo(cx + dx2, lineY2);
+    ctx.stroke();
+
+    // 填寫文字 (垂直與水平嚴格對齊)
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // 頂層：單位 (位於圓弧頂端與第一條橫線的幾何中心)
+    const topY = (cy - radius + lineY1) / 2 + (size * 0.02);
+    ctx.font = `bold ${size * 0.15}px "Microsoft JhengHei", "PingFang TC", sans-serif`;
+    ctx.fillText(dept, cx, topY);
+
+    // 中層：日期數字 (正中心垂直校正)
+    ctx.font = `bold ${size * 0.14}px "Segoe UI", Arial, sans-serif`;
+    ctx.fillText(date, cx, cy + (size * 0.01));
+
+    // 底層：姓名 (位於第二條橫線與圓弧底端的幾何中心)
+    const bottomY = (lineY2 + cy + radius) / 2 - (size * 0.02);
+    ctx.font = `bold ${size * 0.17}px "Microsoft JhengHei", "PingFang TC", sans-serif`;
+    ctx.fillText(name, cx, bottomY);
+
+    return stampCanvas;
+  }
+
+  function updateStampPreview() {
+    if (!pdfDoc) return;
+
+    const size = parseInt(document.getElementById('stampSize').value);
+    const dept = document.getElementById('stampDept').value;
+    const date = document.getElementById('stampDate').value;
+    const name = document.getElementById('stampName').value;
+    const color = document.getElementById('stampColor').value;
+
+    const generatedStamp = drawStampCanvas(size, dept, date, name, color);
+
+    const overlay = document.getElementById('stampOverlay');
+    overlay.width = size;
+    overlay.height = size;
+    overlay.style.width = size + 'px';
+    overlay.style.height = size + 'px';
+    overlay.style.left = stampX + 'px';
+    overlay.style.top = stampY + 'px';
+    overlay.style.display = 'block';
+
+    const oCtx = overlay.getContext('2d');
+    oCtx.clearRect(0, 0, size, size);
+    oCtx.drawImage(generatedStamp, 0, 0);
+  }
+
+  function enableStampMode() {
+    stampX = 50;
+    stampY = 50;
+    updateStampPreview();
+  }
+
+  const overlay = document.getElementById('stampOverlay');
+  overlay.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    dragStartX = e.clientX - stampX;
+    dragStartY = e.clientY - stampY;
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    stampX = e.clientX - dragStartX;
+    stampY = e.clientY - dragStartY;
+    overlay.style.left = stampX + 'px';
+    overlay.style.top = stampY + 'px';
+  });
+
+  window.addEventListener('mouseup', () => { isDragging = false; });
+
+  async function applyStampAndDownload() {
+    if (!currentPdfBytes) return alert('請先選擇或拖曳 PDF 檔案！');
+    if (typeof PDFLib === 'undefined') return alert('PDFLib 套件未載入！');
+
+    try {
+      const pdfLibDoc = await PDFLib.PDFDocument.load(currentPdfBytes.slice(0));
+      const page = pdfLibDoc.getPage(currentPageNum - 1);
+      const { width, height } = page.getSize();
+
+      const size = parseInt(document.getElementById('stampSize').value);
+      const dept = document.getElementById('stampDept').value;
+      const date = document.getElementById('stampDate').value;
+      const name = document.getElementById('stampName').value;
+      const color = document.getElementById('stampColor').value;
+
+      const stampCanvas = drawStampCanvas(size * 2, dept, date, name, color);
+      const stampDataUrl = stampCanvas.toDataURL('image/png');
+      const stampImage = await pdfLibDoc.embedPng(stampDataUrl);
+
+      const pdfCanvas = document.getElementById('pdfCanvas');
+      const scaleX = width / pdfCanvas.width;
+      const scaleY = height / pdfCanvas.height;
+
+      const pdfStampWidth = size * scaleX;
+      const pdfStampHeight = size * scaleY;
+      const pdfStampX = stampX * scaleX;
+      const pdfStampY = height - (stampY * scaleY) - pdfStampHeight;
+
+      page.drawImage(stampImage, {
+        x: pdfStampX,
+        y: pdfStampY,
+        width: pdfStampWidth,
+        height: pdfStampHeight,
+      });
+
+      const modifiedPdfBytes = await pdfLibDoc.save();
+      downloadFile(modifiedPdfBytes, `蓋章完成_第${currentPageNum}頁.pdf`);
+    } catch (err) {
+      alert('蓋章下載出錯：' + err.message);
+    }
+  }
+
+  async function extractCurrentPage() {
+    if (!currentPdfBytes) return alert('請先選擇或拖曳 PDF 檔案！');
+    try {
+      const sourceDoc = await PDFLib.PDFDocument.load(currentPdfBytes.slice(0));
+      const newDoc = await PDFLib.PDFDocument.create();
+
+      const [copiedPage] = await newDoc.copyPages(sourceDoc, [currentPageNum - 1]);
+      newDoc.addPage(copiedPage);
+
+      const pdfBytes = await newDoc.save();
+      downloadFile(pdfBytes, `提取_第${currentPageNum}頁.pdf`);
+    } catch (err) {
+      alert('提取頁面出錯：' + err.message);
+    }
+  }
+
+  async function deleteCurrentPage() {
+    if (!currentPdfBytes) return alert('請先選擇或拖曳 PDF 檔案！');
+    if (totalPages <= 1) return alert('無法刪除唯一頁面！');
+    if (!confirm(`確定要刪除第 ${currentPageNum} 頁嗎？`)) return;
+
+    try {
+      const sourceDoc = await PDFLib.PDFDocument.load(currentPdfBytes.slice(0));
+      sourceDoc.removePage(currentPageNum - 1);
+
+      currentPdfBytes = await sourceDoc.save();
+      pdfDoc = await pdfjsLib.getDocument({ data: currentPdfBytes.slice(0) }).promise;
+      totalPages = pdfDoc.numPages;
+
+      if (currentPageNum > totalPages) currentPageNum = totalPages;
+      renderPage(currentPageNum);
+      alert('已成功刪除該頁！');
+    } catch (err) {
+      alert('刪除頁面出錯：' + err.message);
+    }
+  }
+
+  function changePage(delta) {
+    if (!pdfDoc) return;
+    const newPage = currentPageNum + delta;
+    if (newPage >= 1 && newPage <= totalPages) {
+      currentPageNum = newPage;
+      renderPage(currentPageNum);
+    }
+  }
+
+  function downloadFile(bytes, filename) {
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  }
+</script>
+
+</body>
+</html>
