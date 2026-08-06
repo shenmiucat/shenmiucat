@@ -1,0 +1,451 @@
+<html>
+
+<head>
+
+<meta content="text/html; charset=UTF-8" http-equiv="content-type">
+
+<title>塔羅牌抽牌程式</title>
+
+</head>
+
+<body>
+
+<table style="width: 100%; text-align: left;" border="0" cellpadding="0" cellspacing="0">
+
+<tbody>
+
+<tr>
+
+<td>
+<center>
+<form name='form' id='form'>
+張　數：<input type='text' name='num' id='num' size='13' /><input type='button' name='submit' value='抽牌' onclick='processFormData();' /><br />
+▼▼▼▼▼位置說明▼▼▼▼▼<br />
+第１張：<input type='text' name='no1' id='no1' /><br />
+第２張：<input type='text' name='no2' id='no2' /><br />
+第３張：<input type='text' name='no3' id='no3' /><br />
+第４張：<input type='text' name='no4' id='no4' /><br />
+第５張：<input type='text' name='no5' id='no5' /><br />
+第６張：<input type='text' name='no6' id='no6' /><br />
+第７張：<input type='text' name='no7' id='no7' /><br />
+第８張：<input type='text' name='no8' id='no8' /><br />
+第９張：<input type='text' name='no9' id='no9' /><br />
+第10張：<input type='text' name='no10' id='no10' /><br />
+第11張：<input type='text' name='no11' id='no11' /><br />
+第12張：<input type='text' name='no12' id='no12' /><br />
+第13張：<input type='text' name='no13' id='no13' /><br />
+第14張：<input type='text' name='no14' id='no14' /><br />
+第15張：<input type='text' name='no15' id='no15' /><br />
+第16張：<input type='text' name='no16' id='no16' /><br />
+第17張：<input type='text' name='no17' id='no17' /><br />
+第18張：<input type='text' name='no18' id='no18' /><br />
+第19張：<input type='text' name='no19' id='no19' /><br />
+第20張：<input type='text' name='no20' id='no20' />
+</form>
+</center>
+</td>
+</tr>
+
+<tr>
+<td style="vertical-align: top;">
+<div align="center">
+<script language="javascript">
+
+//塔羅文字
+var tarot = new Array(78);
+tarot[0] = "０愚者";tarot[1] = "１魔法師";tarot[2] = "２女祭司";tarot[3] = "３皇后";tarot[4] = "４皇帝";tarot[5] = "５大祭司";
+tarot[6] = "６戀人";tarot[7] = "７戰車";tarot[8] = "８調節";tarot[9] = "９隱者";tarot[10] = "10命運";tarot[11] = "11慾望";
+tarot[12] = "12吊人";tarot[13] = "13死神";tarot[14] = "14藝術";tarot[15] = "15惡魔";tarot[16] = "16塔";tarot[17] = "17星星";
+tarot[18] = "18月亮";tarot[19] = "19太陽";tarot[20] = "20新紀元";tarot[21] = "21宇宙";tarot[22] = "權杖王牌";tarot[23] = "權杖２";
+tarot[24] = "權杖３";tarot[25] = "權杖４";tarot[26] = "權杖５";tarot[27] = "權杖６";tarot[28] = "權杖７";tarot[29] = "權杖８";
+tarot[30] = "權杖９";tarot[31] = "權杖10";tarot[32] = "權杖騎士";tarot[33] = "權杖皇后";tarot[34] = "權杖王子";tarot[35] = "權杖公主";
+tarot[36] = "寶劍王牌";tarot[37] = "寶劍２";tarot[38] = "寶劍３";tarot[39] = "寶劍４";tarot[40] = "寶劍５";tarot[41] = "寶劍６";
+tarot[42] = "寶劍７";tarot[43] = "寶劍８";tarot[44] = "寶劍９";tarot[45] = "寶劍10";tarot[46] = "寶劍騎士";tarot[47] = "寶劍皇后";
+tarot[48] = "寶劍王子";tarot[49] = "寶劍公主";tarot[50] = "聖杯王牌";tarot[51] = "聖杯２";tarot[52] = "聖杯３";tarot[53] = "聖杯４";
+tarot[54] = "聖杯５";tarot[55] = "聖杯６";tarot[56] = "聖杯７";tarot[57] = "聖杯８";tarot[58] = "聖杯９";tarot[59] = "聖杯10";
+tarot[60] = "聖杯騎士";tarot[61] = "聖杯皇后";tarot[62] = "聖杯王子";tarot[63] = "聖杯公主";tarot[64] = "圓盤王牌";tarot[65] = "圓盤２";
+tarot[66] = "圓盤３";tarot[67] = "圓盤４";tarot[68] = "圓盤５";tarot[69] = "圓盤６";tarot[70] = "圓盤７";tarot[71] = "圓盤８";
+tarot[72] = "圓盤９";tarot[73] = "圓盤10";tarot[74] = "圓盤騎士";tarot[75] = "圓盤皇后";tarot[76] = "圓盤王子";tarot[77] = "圓盤公主";
+
+//張數
+var num;
+//加牌張數
+var add = 0;
+//解讀位置
+numtext = new Array(78);
+//塔羅數字
+var cardnum = new Array(78);
+//塔羅正逆
+var cardsta = new Array(78);
+
+function processFormData() {
+
+	const numElement = document.getElementById("num");
+	num = numElement.value;
+
+	//解讀位置存入矩陣
+	for (i=0;i<num;i++)
+	{
+		numtext[i] = "";
+	}
+	const no1Element = document.getElementById("no1");
+	numtext[0] = no1Element.value;
+	const no2Element = document.getElementById("no2");
+	numtext[1] = no2Element.value;
+	const no3Element = document.getElementById("no3");
+	numtext[2] = no3Element.value;
+	const no4Element = document.getElementById("no4");
+	numtext[3] = no4Element.value;
+	const no5Element = document.getElementById("no5");
+	numtext[4] = no5Element.value;
+	const no6Element = document.getElementById("no6");
+	numtext[5] = no6Element.value;
+	const no7Element = document.getElementById("no7");
+	numtext[6] = no7Element.value;
+	const no8Element = document.getElementById("no8");
+	numtext[7] = no8Element.value;
+	const no9Element = document.getElementById("no9");
+	numtext[8] = no9Element.value;
+	const no10Element = document.getElementById("no10");
+	numtext[9] = no10Element.value;
+	const no11Element = document.getElementById("no11");
+	numtext[10] = no11Element.value;
+	const no12Element = document.getElementById("no12");
+	numtext[11] = no12Element.value;
+	const no13Element = document.getElementById("no13");
+	numtext[12] = no13Element.value;
+	const no14Element = document.getElementById("no14");
+	numtext[13] = no14Element.value;
+	const no15Element = document.getElementById("no15");
+	numtext[14] = no15Element.value;
+	const no16Element = document.getElementById("no16");
+	numtext[15] = no16Element.value;
+	const no17Element = document.getElementById("no17");
+	numtext[16] = no17Element.value;
+	const no18Element = document.getElementById("no18");
+	numtext[17] = no18Element.value;
+	const no19Element = document.getElementById("no19");
+	numtext[18] = no19Element.value;
+	const no20Element = document.getElementById("no20");
+	numtext[19] = no20Element.value;
+
+
+//num張牌的隨機
+
+var flag=true;
+
+while (flag)
+{
+	flag=false;
+
+	for (i=0;i<num;i++)
+	{
+		//out1[i] = tarot[Math.floor(Math.random() * tarot.length)];
+		cardnum[i] = Math.floor(Math.random() * tarot.length);
+	}
+
+	for(i=0;i<num;i++)
+	{
+		for(j=0;j<i;j++)
+		{
+			if(cardnum[j]==cardnum[i])
+			{
+				flag=true;
+				break;
+			}
+		}
+	}
+}
+
+//num張牌的正逆位
+var mode = new Array(2);
+mode[0] = "";
+mode[1] = "_";
+
+for (i=0;i<num;i++)
+{
+	//out2[i] = "<img src='https://tarot.caishin.tw/tarot/"+mode[Math.floor(Math.random() * mode.length)]+".jpg'>";
+	cardsta[i] = mode[Math.floor(Math.random() * mode.length)];
+}
+
+//清除顯示頁面
+document.body.innerHTML="";
+
+//開始顯示畫面
+document.write("<hr><table border='0' align='center'><tr align='center'>");
+
+//顯示解讀位置
+for(i=0;i<num;i++)
+{
+	document.write("<td>");
+	tmp = numtext[i];
+	document.write(tmp);
+}
+document.write("</tr><tr align='center'>");
+
+
+//顯示num張牌的圖面
+for(i=0;i<num;i++)
+{
+	/*含正逆
+	tmp = "<td><img src='tarot_images/"+cardsta[i]+cardnum[i]+".jpg' width='95px' height='131px'></td>";
+	*/
+	//不含正逆
+	tmp = "<td><img src='tarot_images/"+cardnum[i]+".jpg' height='150px'></td>";
+	document.write(tmp);
+}
+document.write("</tr><tr align='center'>");
+
+//顯示num張牌的文字說明
+
+for(i=0;i<num;i++)
+{
+	document.write("<td>");
+	tmp = cardnum[i];
+	document.write(tarot[tmp]);
+	/*含正逆
+	tmp = cardsta[i];
+	if(tmp == "_")
+	{
+		document.write("逆位");
+	}
+	else
+	{
+		document.write("正位");
+	}
+	*/
+	document.write("</td>");
+}
+
+document.write("</tr></table><hr><center><input type='button' name='submit' value='加牌' onclick='processFormData_add();' />　<input type='button' name='submit' value='快速重抽' onclick='processFormData_re();' /><p>");
+
+document.write("</tr></table><center>→→<a href='JavaScript:this.location.reload()'>回張數選擇</a>←←</center><hr>");
+
+
+//document.write("</tr></table><hr>張數：<input type='text' name='num' id='num' value="+num+" /><input type='button' name='submit' value='送出' onclick='processFormData();' />");
+
+}  //End of function processFormData()
+
+
+
+
+
+
+
+
+
+//加牌
+function processFormData_add() {
+
+var num_add = parseInt(num)+parseInt(add);
+
+//加牌的隨機
+
+var flag=true;
+
+while (flag)
+{
+	flag=false;
+
+	cardnum[num_add] = Math.floor(Math.random() * tarot.length);
+
+	for(i=0;i<num_add;i++)
+	{
+		if(cardnum[i]==cardnum[num_add])
+		{
+			flag=true;
+			break;
+		}
+	}
+}
+
+//加牌的正逆位
+var mode = new Array(2);
+mode[0] = "";
+mode[1] = "_";
+
+for(i=0;i<1;i++)
+{
+	//out2[i] = "<img src='https://tarot.caishin.tw/tarot/"+mode[Math.floor(Math.random() * mode.length)]+".jpg'>";
+	cardsta[i] = mode[Math.floor(Math.random() * mode.length)];
+}
+
+//開始顯示畫面
+document.write("<table border='0' align='center'><tr align='center'>");
+
+//顯示解讀位置
+for(i=0;i<1;i++)
+{
+	document.write("<td>");
+	//tmp = numtext[i];
+	document.write("加牌");
+}
+document.write("</tr><tr align='center'>");
+
+//顯示加牌的圖面
+for(i=0;i<1;i++)
+{
+	/*含正逆
+	tmp = "<td><img src='tarot_images/"+cardsta[i]+cardnum[i]+".jpg' width='95px' height='131px'></td>";
+	*/
+	//不含正逆
+	tmp = "<td><img src='tarot_images/"+cardnum[num_add]+".jpg' height='150px'></td>";
+	document.write(tmp);
+}
+document.write("</tr><tr align='center'>");
+
+//顯示加牌的文字說明
+for(i=0;i<1;i++)
+{
+	document.write("<td>");
+	tmp = cardnum[num_add];
+	document.write(tarot[tmp]);
+	/*含正逆
+	tmp = cardsta[num_add];
+	if(tmp == "_")
+	{
+		document.write("逆位");
+	}
+	else
+	{
+		document.write("正位");
+	}
+	*/
+	document.write("</td>");
+}
+
+//加牌數遞增
+add++;
+
+document.write("</tr></table>");
+
+}  //End of function processFormData_add()
+
+
+
+
+
+
+
+
+
+
+
+function processFormData_re() {
+
+add = 0;
+
+//num張牌的隨機
+
+var flag=true;
+
+while (flag)
+{
+	flag=false;
+
+	for (i=0;i<num;i++)
+	{
+		//out1[i] = tarot[Math.floor(Math.random() * tarot.length)];
+		cardnum[i] = Math.floor(Math.random() * tarot.length);
+	}
+
+	for(i=0;i<num;i++)
+	{
+		for(j=0;j<i;j++)
+		{
+			if(cardnum[j]==cardnum[i])
+			{
+				flag=true;
+				break;
+			}
+		}
+	}
+}
+
+//num張牌的正逆位
+var mode = new Array(2);
+mode[0] = "";
+mode[1] = "_";
+
+for (i=0;i<num;i++)
+{
+	//out2[i] = "<img src='https://tarot.caishin.tw/tarot/"+mode[Math.floor(Math.random() * mode.length)]+".jpg'>";
+	cardsta[i] = mode[Math.floor(Math.random() * mode.length)];
+}
+
+//清除顯示頁面
+//document.body.innerHTML="";
+
+//開始顯示畫面
+document.write("<hr><table border='0' align='center'><tr align='center'>");
+
+
+//顯示解讀位置
+for(i=0;i<num;i++)
+{
+	document.write("<td>");
+	tmp = numtext[i];
+	document.write(tmp);
+}
+document.write("</tr><tr align='center'>");
+
+
+//顯示num張牌的圖面
+for(i=0;i<num;i++)
+{
+	/*含正逆
+	tmp = "<td><img src='tarot_images/"+cardsta[i]+cardnum[i]+".jpg' width='95px' height='131px'></td>";
+	*/
+	//不含正逆
+	tmp = "<td><img src='tarot_images/"+cardnum[i]+".jpg' height='150px'></td>";
+	document.write(tmp);
+}
+document.write("</tr><tr align='center'>");
+
+//顯示num張牌的文字說明
+
+for(i=0;i<num;i++)
+{
+	document.write("<td>");
+	tmp = cardnum[i];
+	document.write(tarot[tmp]);
+	/*含正逆
+	tmp = cardsta[i];
+	if(tmp == "_")
+	{
+		document.write("逆位");
+	}
+	else
+	{
+		document.write("正位");
+	}
+	*/
+	document.write("</td>");
+}
+
+document.write("</tr></table><hr><center><input type='button' name='submit' value='加牌' onclick='processFormData_add();' />　<input type='button' name='submit' value='快速重抽' onclick='processFormData_re();' /><p>");
+
+document.write("</tr></table><center>→→<a href='JavaScript:this.location.reload()'>回張數選擇</a>←←</center><hr>");
+
+}  //End of function processFormData_re()
+
+
+
+
+
+
+
+
+
+
+
+</script>
+
+</div>
+</td>
+</tr>
+
+</tbody>
+</table>
+</body>
+</html>
